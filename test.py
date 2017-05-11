@@ -1,4 +1,5 @@
 import functools
+import math
 
 def new_fn(f):
     @functools.wraps(f)
@@ -12,4 +13,9 @@ def f1(x):
     return x*2
 
 print f1.__name__
+
+a = math.sqrt(8)
+b = int(a)
+print a
+print b
 
