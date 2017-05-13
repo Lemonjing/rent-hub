@@ -15,7 +15,6 @@ from bs4 import BeautifulSoup
 import Config
 
 
-
 class Utils(object):
     @staticmethod
     def isInBalckList(blacklist, toSearch):
@@ -31,15 +30,20 @@ class Utils(object):
         # 13:47:32或者2016-05-25或者2016-05-25 13:47:32
         # 都转成了datetime
         if '-' in timeStr and ':' in timeStr:
+            # 返回日期时间的datetime对象
             return datetime.datetime.strptime(timeStr, "%Y-%m-%d %H:%M:%S")
         elif '-' in timeStr:
+            # 返回仅日期的datetime对象
             return datetime.datetime.strptime(timeStr, "%Y-%m-%d")
         elif ':' in timeStr:
-            date_today = datetime.date.today();
-            date = datetime.datetime.strptime(timeStr, "%H:%M:%S")
+            # 拼上当前日期
+            date_today = datetime.date.today()
+            dt = datetime.datetime.strptime(timeStr, "%H:%M:%S")
             # date.replace(year, month, day)：生成一个新的日期对象
-            return date.replace(year=date_today.year, month=date_today.month, day=date_today.day)
+            return dt.replace(year=date_today.year, month=date_today.month, day=date_today.day)
         else:
+            # 返回本地日期
+            print "==========Enter else()========="
             return datetime.date.today()
 
 
