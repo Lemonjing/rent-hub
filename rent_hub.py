@@ -36,15 +36,14 @@ class Utils(object):
             # 返回仅日期的datetime对象
             return datetime.datetime.strptime(timeStr, "%Y-%m-%d")
         elif ':' in timeStr:
-            # 拼上当前日期
+            # 返回拼上当前日期的datetime对象
             date_today = datetime.date.today()
             dt = datetime.datetime.strptime(timeStr, "%H:%M:%S")
             # date.replace(year, month, day)：生成一个新的日期对象
             return dt.replace(year=date_today.year, month=date_today.month, day=date_today.day)
         else:
-            # 返回本地日期
-            print "==========Enter else()========="
-            return datetime.date.today()
+            # 返回当前的datetime对象
+            return datetime.datetime.today()
 
 
 
@@ -54,9 +53,9 @@ class Main(object):
     def __init__(self, config):
         self.config = config
         self.douban_headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, sdch',
+            'Accept-Encoding': 'gzip, deflate, sdch, br',
             'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.4,en-GB;q=0.2,zh-TW;q=0.2',
             'Connection': 'keep-alive',
             'DNT': '1',
@@ -76,7 +75,6 @@ class Main(object):
                 'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, title TEXT, url TEXT UNIQUE, itemtime timestamp, crawtime timestamp, source TEXT, keyword TEXT, note TEXT)')
             cursor.close()
             cursor = conn.cursor()
-
 
             search_list = self.config.key_search_word_list
             custom_black_list = self.config.custom_black_list
@@ -104,7 +102,8 @@ class Main(object):
                     try:
                         if i == 0:
                             self.douban_headers['Cookie'] = r.cookies
-                        soup = BeautifulSoup(r.text)
+                            print '=======cookies=' + r.cookies
+                        soup = BeautifulSoup(r.text, 'html.parser')
                         paginator = soup.find_all(attrs={'class': 'paginator'})[0]
                         # print "paginator: ", paginator
                         if (page_number != 0) and not paginator:

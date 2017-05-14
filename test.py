@@ -75,7 +75,7 @@ print time.strftime(FILETIMEFORMAT, a).replace(":", "")
 print sys.path[0]
 print datetime.date.today()
 
-a = datetime.datetime.strptime(str2, '%H:%M:%S')
+a = datetime.datetime.today()
 b = datetime.datetime.strptime(str1, '%Y-%m-%d')
 print a, b
 print a < b
