@@ -4,6 +4,9 @@ import datetime
 import os
 import time
 import sys
+import requests
+import Config
+
 
 def new_fn(f):
     @functools.wraps(f)
@@ -72,10 +75,11 @@ a = time.localtime()
 FILETIMEFORMAT = '%Y%m%d_%X'
 print time.strftime(FILETIMEFORMAT, a).replace(":", "")
 
-print sys.path[0]
-print datetime.date.today()
 
-a = datetime.datetime.today()
-b = datetime.datetime.strptime(str1, '%Y-%m-%d')
-print a, b
-print a < b
+url = 'https://www.douban.com'
+r = requests.get(url)
+this_file_dir = os.path.split(os.path.realpath(__file__))[0]
+config_file_path = os.path.join(this_file_dir, 'config.ini')
+config = Config.Config(config_file_path)
+config.update(r.cookies)
+print config.douban_cookie

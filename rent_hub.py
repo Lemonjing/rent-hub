@@ -17,11 +17,11 @@ import Config
 
 class Utils(object):
     @staticmethod
-    def isInBalckList(blacklist, toSearch):
+    def isInBalckList(blacklist, text):
         if blacklist:
             return False
         for item in blacklist:
-            if toSearch.find(item) != -1:
+            if text.find(item) != -1:
                 return True
         return False
 
@@ -46,9 +46,8 @@ class Utils(object):
             return datetime.datetime.today()
 
 
-
-class Main(object):
-    douban_black_list=(u'搬家')
+class Crawler(object):
+    douban_black_list = (u'搬家')
 
     def __init__(self, config):
         self.config = config
@@ -64,7 +63,7 @@ class Main(object):
         }
 
     def run(self):
-        result_file_name = 'results/result_' + str(spider.file_time)
+        result_file_name = 'results/result_' + str(boot.file_time)
         try:
             print '打开数据库...'
             # creat database
@@ -76,49 +75,66 @@ class Main(object):
             cursor.close()
             cursor = conn.cursor()
 
-            search_list = self.config.key_search_word_list
-            custom_black_list = self.config.custom_black_list
-            start_time = Utils.getTimeFromStr(self.config.start_time)
+            key_word_list = self.config.key_word_list  # 爬取的关键字列表
+            custom_black_list = self.config.custom_black_list  # 自定义关键字黑名单列表
+            start_time = Utils.getTimeFromStr(self.config.start_time)  # 爬取的开始时间
+
+            '''
+            爬虫初始url集合
+            入参：页面编号
+            '''
 
             def urlList(page_number):
                 num_in_url = str(page_number * 50)
-                douban_url = ['https://www.douban.com/group/search?start=' + num_in_url +'&group=146409&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=523355&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=557646&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=383972&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=283855&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=76231&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=196844&cat=1013&sort=time&q=',
-                              'https://www.douban.com/group/search?start=' + num_in_url +'&group=259227&cat=1013&sort=time&q=']
+
+                '''
+                douban_url = [
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=146409&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=523355&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=557646&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=383972&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=283855&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=76231&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=196844&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=259227&cat=1013&sort=time&q=']
+                '''
+                douban_url = [
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=146409&cat=1013&sort=time&q=',
+                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=523355&cat=1013&sort=time&q=']
+
                 return douban_url
 
+            '''
+            与初始url一一对应的群组名
+            '''
             douban_url_name = [u'上海租房', u'上海招聘，租房', u'上海租房(2)', u'上海合租族_魔都租房', u'上海租房@浦东租房', \
                                u'上海租房---房子是租来的，生活不是', u'上海租房@长宁租房/徐汇/静安租房', u'上海租房（不良中介勿扰）']
 
-            def crawl(i, douban_url, keyword, douban_headers):
-                url_link = douban_url[i] + keyword
+            def crawl(index, currentUrl, keyword, douban_headers):
+                url_link = currentUrl + keyword
                 print 'url_link: ', url_link
                 r = requests.get(url_link, headers=douban_headers)
                 if r.status_code == 200:
                     try:
-                        if i == 0:
+                        if index == 0:
                             self.douban_headers['Cookie'] = r.cookies
-                            print '=======cookies=' + r.cookies
+                            print self.douban_headers['Cookie']
                         soup = BeautifulSoup(r.text, 'html.parser')
                         paginator = soup.find_all(attrs={'class': 'paginator'})[0]
-                        # print "paginator: ", paginator
+                        # print "=========paginator: =", paginator
+
                         if (page_number != 0) and not paginator:
                             return False
                         else:
                             try:
                                 table = soup.find_all(attrs={'class': 'olt'})[0]
                                 tr_count_for_this_page = 0
-                                spider.ok = True
+                                boot.ok = True
 
                                 for tr in table.find_all('tr'):
                                     td = tr.find_all('td')
-                                    title_element = td[0].find_all('a')[0]
-                                    title_text = title_element.get('title')
+                                    td_content = td[0].find_all('a')[0]
+                                    title_text = td_content.get('title')
                                     # ignore items in blacklist
                                     if Utils.isInBalckList(custom_black_list, title_text):
                                         continue
@@ -127,12 +143,12 @@ class Main(object):
                                     time_text = td[1].get('title')
 
                                     if (page_number != 0) and (Utils.getTimeFromStr(time_text) < start_time):
-                                        spider.ok = False
+                                        boot.ok = False
                                         break
                                     # ignore data ahead of the specific date
                                     if Utils.getTimeFromStr(time_text) < start_time:
                                         continue
-                                    link_text = title_element.get('href');
+                                    link_text = td_content.get('href')
 
                                     reply_count = td[2].find_all('span')[0].text
                                     tr_count_for_this_page += 1
@@ -141,21 +157,20 @@ class Main(object):
                                         cursor.execute(
                                             'INSERT INTO rent(id, title, url, itemtime, crawtime, source, keyword, note) VALUES(NULL, ?, ?, ?, ?, ?, ?, ?)',
                                             [title_text, link_text, Utils.getTimeFromStr(time_text),
-                                             datetime.datetime.now(), keyword,
-                                             douban_url_name[i], reply_count])
-                                        print 'add new data:', title_text, time_text, reply_count, link_text, keyword
+                                             datetime.datetime.now(), douban_url_name[index], keyword, reply_count])
+                                        print 'add new data:', title_text, link_text, time_text, datetime.datetime.now(), \
+                                            douban_url_name[index], keyword, reply_count
                                     except sqlite3.Error, e:
-                                        print 'data exists:', title_text, link_text, e # 之前添加过了而URL（设置了唯一）一样会报错
+                                        print 'data exists:', title_text, link_text, e  # 之前添加过了而URL（设置了唯一）一样会报错
                             except Exception, e:
                                 print 'error match table:', e
                     except Exception, e:
                         print 'error match paginator:', e
-                        spider.ok = False
+                        boot.ok = False
                         return False
                 else:
                     print 'request url error %s -status code: %s:' % (url_link, r.status_code)
                 time.sleep(self.config.douban_sleep_time)
-                
 
             print '爬虫开始运行...'
 
@@ -163,31 +178,33 @@ class Main(object):
             for i in range(len(douban_url)):
                 page_number = 0
 
-                print 'start i ->',i
-                for j in range(len(search_list)):
-                    spider.ok = True
+                # i is url index, j is keyword index
+                print 'start url[%d]:' % i
+
+                for j in range(len(key_word_list)):
+                    boot.ok = True
                     page_number = 0
-                    keyword = search_list[j]
-                    print 'start i->j %s -> %s %s' %(i, j, keyword)
+                    keyword = key_word_list[j]
+                    print 'start i->j %s -> %s %s' % (i, j, keyword)
                     print '>>>>>>>>>> Search %s  %s ...' % (douban_url_name[i].encode('utf-8'), keyword)
-                    
-                    while spider.ok:
-                        spider.ok = True
+
+                    while boot.ok:
+                        boot.ok = True
                         print 'i, j, page_number: ', i, j, page_number
-                        
-                        douban_url = urlList(page_number)
-                        crawl(i, douban_url, keyword, self.douban_headers)
+
+                        currentUrl = urlList(page_number)[i]
+                        crawl(i, currentUrl, keyword, self.douban_headers)
                         page_number += 1
 
             cursor.close()
 
             cursor = conn.cursor()
-            cursor.execute('SELECT * FROM rent ORDER BY itemtime DESC ,crawtime DESC')
+            cursor.execute('SELECT * FROM rent ORDER BY id ASC')
             values = cursor.fetchall()
 
             # export to html file
             print '爬虫运行结束。开始写入结果文件'
-            
+
             file = open(result_file_name + '.html', 'wb')
             with file:
                 file.write('''<html>
@@ -205,7 +222,7 @@ class Main(object):
                     ''')
                 file.write('<table>')
                 file.write(
-                    '<tr><th>索引</th><th>标题</th><th>发帖时间</th><th>抓取时间</th><th>关键字</th><th>来源</th><th>回复数</th></tr>')
+                    '<tr><th>索引</th><th>标题</th><th>发帖时间</th><th>抓取时间</th><th>来源</th><th>关键字</th><th>回复数</th></tr>')
 
                 for row in values:
                     file.writelines('<tr>')
@@ -217,9 +234,9 @@ class Main(object):
                         if i == 1:
                             file.write('<a href="' + str(row[2]) + '" target="_black">' + str(row[1]) + '</a>')
                             i += 1
+                            file.write('</td>')
                             continue
                         file.write(str(row[i]))
-                        i += 1
                         file.write('</td>')
                     file.write('</tr>')
                 file.write('</table>')
@@ -247,8 +264,7 @@ class Main(object):
             print '结果文件写入完毕。请打开"' + result_file_name + '.html"查看结果。'
 
 
-
-class Spider(object):
+class BootDriver(object):
     def __init__(self):
         this_file_dir = os.path.split(os.path.realpath(__file__))[0]
         config_file_path = os.path.join(this_file_dir, 'config.ini')
@@ -261,12 +277,10 @@ class Spider(object):
             os.makedirs(results_path)
 
     def run(self):
-        main = Main(self.config)
-        main.run()
-
+        crawler = Crawler(self.config)
+        crawler.run()
 
 
 if __name__ == '__main__':
-    spider = Spider()
-    spider.run()
-
+    boot = BootDriver()
+    boot.run()
