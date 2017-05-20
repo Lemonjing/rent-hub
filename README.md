@@ -1,7 +1,7 @@
 # RentHub Py Server
 
-RentHub 租房聚合平台 Python Server端
-  
+## py server about weixin [rent-hub](https://github.com/Lemonjing/rent-hub-wx) application.
+
 ## System Requirements:
 
 - Python 2.7.10  
@@ -20,8 +20,7 @@ $ pip install -r requirements.txt
 # Modify config.ini
 $ vim config.ini
 ```   
-  
-  
+
 在**config.ini**里配置并保存：  
 1. `key_word_list`为想要搜索的关键词。如果有多个关键词，请用**英文**逗号`,`隔开
 2. `custom_black_list`为拒绝的关键词黑名单。同样如果有多个关键词，请用**英文**逗号`,`隔开  
