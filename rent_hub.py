@@ -71,7 +71,7 @@ class Crawler(object):
             conn.text_factory = str
             cursor = conn.cursor()
             cursor.execute(
-                'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, title TEXT, url TEXT UNIQUE, itemtime timestamp, crawtime timestamp, source TEXT, keyword TEXT, note TEXT)')
+                'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, user TEXT, title TEXT, url TEXT UNIQUE, itemtime timestamp, crawtime timestamp, source TEXT, keyword TEXT, note TEXT)')
             cursor.close()
             cursor = conn.cursor()
 
