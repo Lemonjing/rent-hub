@@ -6,9 +6,6 @@ import sys
 import time
 import datetime
 import os
-
-# beautifulSoup 4.4.1
-# requests 2.9.1
 import requests
 from bs4 import BeautifulSoup
 
@@ -47,7 +44,7 @@ class Utils(object):
 
 
 class Crawler(object):
-    douban_black_list = (u'搬家')
+    douban_black_list = '搬家'
 
     def __init__(self, config):
         self.config = config
@@ -71,7 +68,8 @@ class Crawler(object):
             conn.text_factory = str
             cursor = conn.cursor()
             cursor.execute(
-                'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, user TEXT, title TEXT, url TEXT UNIQUE, itemtime timestamp, crawtime timestamp, source TEXT, keyword TEXT, note TEXT)')
+                'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, user TEXT, headimage TEXT, title TEXT, content TEXT, \
+url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TEXT, note TEXT)')
             cursor.close()
             cursor = conn.cursor()
 
@@ -107,8 +105,8 @@ class Crawler(object):
             '''
             与初始url一一对应的群组名
             '''
-            douban_url_name = [u'上海租房', u'上海招聘，租房', u'上海租房(2)', u'上海合租族_魔都租房', u'上海租房@浦东租房', \
-                               u'上海租房---房子是租来的，生活不是', u'上海租房@长宁租房/徐汇/静安租房', u'上海租房（不良中介勿扰）']
+            douban_url_name = ['上海租房', '上海招聘，租房', '上海租房(2)', '上海合租族_魔都租房', '上海租房@浦东租房', \
+                               '上海租房---房子是租来的，生活不是', '上海租房@长宁租房/徐汇/静安租房', '上海租房（不良中介勿扰）']
 
             def crawl(index, currentUrl, keyword, douban_headers):
                 url_link = currentUrl + keyword
@@ -155,11 +153,12 @@ class Crawler(object):
 
                                     try:
                                         cursor.execute(
-                                            'INSERT INTO rent(id, title, url, itemtime, crawtime, source, keyword, note) VALUES(NULL, ?, ?, ?, ?, ?, ?, ?)',
-                                            [title_text, link_text, Utils.getTimeFromStr(time_text),
+                                            'INSERT INTO rent(id, user, headimage, title, content, url, posttime, crawtime, \
+                                              source, keyword, note) VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                            [None, None, title_text, None, link_text, Utils.getTimeFromStr(time_text),
                                              datetime.datetime.now(), douban_url_name[index], keyword, reply_count])
-                                        print 'add new data:', title_text, link_text, time_text, datetime.datetime.now(), \
-                                            douban_url_name[index], keyword, reply_count
+                                        print 'add new data:', title_text, link_text, time_text, \
+                                            datetime.datetime.now(), douban_url_name[index], keyword, reply_count
                                     except sqlite3.Error, e:
                                         print 'data exists:', title_text, link_text, e  # 之前添加过了而URL（设置了唯一）一样会报错
                             except Exception, e:
@@ -186,7 +185,7 @@ class Crawler(object):
                     page_number = 0
                     keyword = key_word_list[j]
                     print 'start i->j %s -> %s %s' % (i, j, keyword)
-                    print '>>>>>>>>>> Search %s  %s ...' % (douban_url_name[i].encode('utf-8'), keyword)
+                    print '>>>>>>>>>> Search %s  %s ...' % (douban_url_name[i], keyword)
 
                     while boot.ok:
                         boot.ok = True
@@ -222,18 +221,16 @@ class Crawler(object):
                     ''')
                 file.write('<table>')
                 file.write(
-                    '<tr><th>索引</th><th>标题</th><th>发帖时间</th><th>抓取时间</th><th>来源</th><th>关键字</th><th>回复数</th></tr>')
+                    '<tr><th>索引</th><th>用户</th><th>标题</th><th>发布时间</th><th>爬取时间</th><th>来源</th><th>关键字</th><th>回复数</th></tr>')
 
                 for row in values:
                     file.writelines('<tr>')
                     for i in range(len(row)):
-                        if i == 2:
-                            i += 1
+                        if i == 2 or i == 4 or i == 5:
                             continue
                         file.write('<td class="column%s">' % str(i))
-                        if i == 1:
-                            file.write('<a href="' + str(row[2]) + '" target="_black">' + str(row[1]) + '</a>')
-                            i += 1
+                        if i == 3:
+                            file.write('<a href="' + str(row[5]) + '" target="_black">' + str(row[3]) + '</a>')
                             file.write('</td>')
                             continue
                         file.write(str(row[i]))

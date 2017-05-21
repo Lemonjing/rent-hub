@@ -38,13 +38,16 @@ tr:hover {
 }
 
 @media screen and (max-width: 1000px) {
-    .column4 {
+    .column7 {
         display: none;
     }
 }
 
 @media screen and (max-width: 850px) {
-    .column6 {
+    .column8 {
+        display: none;
+    }
+    column9 {
         display: none;
     }
 }
