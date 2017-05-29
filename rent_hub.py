@@ -24,23 +24,48 @@ class Utils(object):
 
     @staticmethod
     def getTimeFromStr(timeStr):
-        # 13:47:32或者2016-05-25或者2016-05-25 13:47:32
-        # 都转成了datetime
+        # 日期时间都转成datetime
+        datetime_today = datetime.datetime.today()
         if '-' in timeStr and ':' in timeStr:
-            # 返回日期时间的datetime对象
-            return datetime.datetime.strptime(timeStr, "%Y-%m-%d %H:%M:%S")
+            # 字符串包含日期和时间
+            prefix_str = timeStr.split(' ')[0]
+            suffix_str = timeStr.split(' ')[1]
+            if len(prefix_str) <= 5 and len(suffix_str) == 8:
+                # 如 1-1 11:00:00 or 01-01 11:00:00
+                print 'Detect No Year of datetime-str.',
+                dt = datetime.datetime.strptime(timeStr, "%m-%d %H:%M:%S")
+                return dt.replace(year=datetime_today.year)
+            elif len(prefix_str) <= 5 and len(suffix_str) < 8:
+                # 如 1-1 11:00 or 01-01 11:00
+                print 'Detect No Year & No Second of datetime-str.',
+                dt = datetime.datetime.strptime(timeStr, "%m-%d %H:%M")
+                return dt.replace(year=datetime_today.year)
+            else:
+                # 如 2017-01-01 11:00:00
+                print 'Detect correct datetime-str.',
+                return datetime.datetime.strptime(timeStr, "%Y-%m-%d %H:%M:%S")
         elif '-' in timeStr:
-            # 返回仅日期的datetime对象
-            return datetime.datetime.strptime(timeStr, "%Y-%m-%d")
+            # 字符串仅有日期
+            if len(timeStr) <= 5:
+                print 'Detect No Year of date-str.',
+                dt = datetime.datetime.strptime(timeStr, "%m-%d")
+                return dt.replace(year=datetime_today.year)
+            else:
+                print 'Detect correct date-str.',
+                return datetime.datetime.strptime(timeStr, "%Y-%m-%d")
         elif ':' in timeStr:
-            # 返回拼上当前日期的datetime对象
-            date_today = datetime.date.today()
-            dt = datetime.datetime.strptime(timeStr, "%H:%M:%S")
+            # 字符串仅有时间
+            if len(timeStr) < 8:
+                print 'Detect No Second of time-str.',
+                dt = datetime.datetime.strptime(timeStr, "%H:%M")
+            else:
+                print 'Detect correct time-str.',
+                dt = datetime.datetime.strptime(timeStr, "%H:%M:%S")
             # date.replace(year, month, day)：生成一个新的日期对象
-            return dt.replace(year=date_today.year, month=date_today.month, day=date_today.day)
+            return dt.replace(year=datetime_today.year, month=datetime_today.month, day=datetime_today.day)
         else:
             # 返回当前的datetime对象
-            return datetime.datetime.today()
+            return datetime_today
 
 
 class Crawler(object):
@@ -60,7 +85,7 @@ class Crawler(object):
         }
 
     def run(self):
-        result_file_name = 'results/result_' + str(boot.file_time)
+        result_file_name = 'results/result_renthub'
         try:
             print '打开数据库...'
             # creat database
@@ -69,7 +94,7 @@ class Crawler(object):
             cursor = conn.cursor()
             cursor.execute(
                 'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, user TEXT, headimage TEXT, title TEXT, content TEXT, \
-url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TEXT, note TEXT)')
+url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, note TEXT)')
             cursor.close()
             cursor = conn.cursor()
 
@@ -97,8 +122,7 @@ url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TE
                     'https://www.douban.com/group/search?start=' + num_in_url + '&group=259227&cat=1013&sort=time&q=']
                 '''
                 douban_url = [
-                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=146409&cat=1013&sort=time&q=',
-                    'https://www.douban.com/group/search?start=' + num_in_url + '&group=523355&cat=1013&sort=time&q=']
+                    'https://www.douban.com/group/146409/discussion?start=' + num_in_url]
 
                 return douban_url
 
@@ -108,8 +132,8 @@ url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TE
             douban_url_name = ['上海租房', '上海招聘，租房', '上海租房(2)', '上海合租族_魔都租房', '上海租房@浦东租房', \
                                '上海租房---房子是租来的，生活不是', '上海租房@长宁租房/徐汇/静安租房', '上海租房（不良中介勿扰）']
 
-            def crawl(index, currentUrl, keyword, douban_headers):
-                url_link = currentUrl + keyword
+            def crawl(index, currentUrl, douban_headers):
+                url_link = currentUrl
                 print 'url_link: ', url_link
                 r = requests.get(url_link, headers=douban_headers)
                 if r.status_code == 200:
@@ -127,40 +151,40 @@ url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TE
                             try:
                                 table = soup.find_all(attrs={'class': 'olt'})[0]
                                 tr_count_for_this_page = 0
-                                boot.ok = True
-
+                                filter_count = 0
                                 for tr in table.find_all('tr'):
+                                    if filter_count <= 2:
+                                        filter_count += 1
+                                        continue
                                     td = tr.find_all('td')
-                                    td_content = td[0].find_all('a')[0]
-                                    title_text = td_content.get('title')
+                                    title_text = td[0].find_all('a')[0].get('title')
                                     # ignore items in blacklist
                                     if Utils.isInBalckList(custom_black_list, title_text):
                                         continue
                                     if Utils.isInBalckList(self.douban_black_list, title_text):
                                         continue
-                                    time_text = td[1].get('title')
+                                    link_text = td[0].find_all('a')[0].get('href')
+                                    user_text = td[1].a.string
+                                    reply_count = td[2].string
+                                    update_time_text = td[3].string
 
-                                    if (page_number != 0) and (Utils.getTimeFromStr(time_text) < start_time):
-                                        boot.ok = False
-                                        break
                                     # ignore data ahead of the specific date
-                                    if Utils.getTimeFromStr(time_text) < start_time:
-                                        continue
-                                    link_text = td_content.get('href')
-
-                                    reply_count = td[2].find_all('span')[0].text
+                                    if Utils.getTimeFromStr(update_time_text) < start_time:
+                                        boot.ok = False
+                                        return False
                                     tr_count_for_this_page += 1
 
                                     try:
                                         cursor.execute(
-                                            'INSERT INTO rent(id, user, headimage, title, content, url, posttime, crawtime, \
-                                              source, keyword, note) VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                                            [None, None, title_text, None, link_text, Utils.getTimeFromStr(time_text),
-                                             datetime.datetime.now(), douban_url_name[index], keyword, reply_count])
-                                        print 'add new data:', title_text, link_text, time_text, \
-                                            datetime.datetime.now(), douban_url_name[index], keyword, reply_count
+                                            'INSERT INTO rent(id, user, headimage, title, content, url, posttime, updatetime, crawtime, \
+                                              source, note) VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                            [user_text, None, title_text, None, link_text, None,
+                                             Utils.getTimeFromStr(update_time_text),
+                                             datetime.datetime.now(), douban_url_name[index], reply_count])
+                                        print 'add new data:', title_text, link_text, update_time_text, \
+                                            datetime.datetime.now(), douban_url_name[index], reply_count
                                     except sqlite3.Error, e:
-                                        print 'data exists:', title_text, link_text, e  # 之前添加过了而URL（设置了唯一）一样会报错
+                                        print 'data exists:', link_text, e  # 之前添加过了而URL（设置了唯一）一样会报错
                             except Exception, e:
                                 print 'error match table:', e
                     except Exception, e:
@@ -177,76 +201,26 @@ url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TE
             for i in range(len(douban_url)):
                 page_number = 0
 
-                # i is url index, j is keyword index
+                # i is url index
                 print 'start url[%d]:' % i
+                boot.ok = True
+                page_number = 0
+                print '>>>>>>>>>> Search %s ...' % douban_url_name[i]
 
-                for j in range(len(key_word_list)):
-                    boot.ok = True
-                    page_number = 0
-                    keyword = key_word_list[j]
-                    print 'start i->j %s -> %s %s' % (i, j, keyword)
-                    print '>>>>>>>>>> Search %s  %s ...' % (douban_url_name[i], keyword)
+                while boot.ok:
+                    print 'i, page_number: ', i, page_number
 
-                    while boot.ok:
-                        boot.ok = True
-                        print 'i, j, page_number: ', i, j, page_number
-
-                        currentUrl = urlList(page_number)[i]
-                        crawl(i, currentUrl, keyword, self.douban_headers)
-                        page_number += 1
-
-            cursor.close()
-
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM rent ORDER BY id ASC')
-            values = cursor.fetchall()
-
-            # export to html file
-            print '爬虫运行结束。开始写入结果文件'
-
-            file = open(result_file_name + '.html', 'wb')
-            with file:
-                file.write('''<html>
-                    <head>
-                    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-                    <title>上海租房信息 | 豆瓣</title>
-                    <link rel="stylesheet" type="text/css" href="../lib/resultPage.css">
-                    </head>
-                    <body>''')
-                file.write('<h1>上海租房信息 | </h1>')
-                file.write('''
-                    <a href="https://www.douban.com/" target="_black">
-                    <img src="https://img3.doubanio.com/f/shire/8977fa054324c4c7f565447b003ebf75e9b4f9c6/pics/nav/lg_main@2x.png" alt="豆瓣icon"/>
-                    </a>
-                    ''')
-                file.write('<table>')
-                file.write(
-                    '<tr><th>索引</th><th>用户</th><th>标题</th><th>发布时间</th><th>爬取时间</th><th>来源</th><th>关键字</th><th>回复数</th></tr>')
-
-                for row in values:
-                    file.writelines('<tr>')
-                    for i in range(len(row)):
-                        if i == 2 or i == 4 or i == 5:
-                            continue
-                        file.write('<td class="column%s">' % str(i))
-                        if i == 3:
-                            file.write('<a href="' + str(row[5]) + '" target="_black">' + str(row[3]) + '</a>')
-                            file.write('</td>')
-                            continue
-                        file.write(str(row[i]))
-                        file.write('</td>')
-                    file.write('</tr>')
-                file.write('</table>')
-                file.write('<script type="text/javascript" src="../lib/resultPage.js"></script>')
-                file.write('</body></html>')
-            cursor.close()
+                    currentUrl = urlList(page_number)[i]
+                    crawl(i, currentUrl, self.douban_headers)
+                    page_number += 1
         except Exception, e:
-            print 'Error:', e.message
-        finally:
-            conn.commit()
-            conn.close()
-            print '========================================='
-            print '''
+            print 'crawl run() error:', e.message
+        cursor.close()
+        conn.commit()
+        conn.close()
+        print '爬虫运行结束。sqlite文件生成。'
+        print '========================================='
+        print '''
             ##########     ##########
             #        #     #        #
             #        #     #        #
@@ -255,10 +229,125 @@ url TEXT UNIQUE, posttime timestamp, crawtime timestamp, source TEXT, keyword TE
             #        #     #        #
             ##########     ##########
 
-            苟利租房生死以，岂因祸福避趋之。
+            房子是租来的，但生活不是。
             '''
-            print '========================================='
-            print '结果文件写入完毕。请打开"' + result_file_name + '.html"查看结果。'
+        print '========================================='
+
+    '''
+    1.准备详情页的数据（用户、正文数据）
+    2.过滤无效数据，写入参数（如不存在的用户发文信息）
+        参数total_count start_time
+    3.写入脚本运行数据到db_hub.sqlite
+        update_time（更新时间）, total_count（总信息数）, update_count（更新信息数）
+    '''
+
+    def process(self):
+        print '================='
+        print '现在开始对数据表进行处理'
+        print '处理1.准备详情页的数据...'
+        # 1
+        dict_topics = {}
+        try:
+            conn = sqlite3.connect('results/result_renthub.sqlite')
+            conn.text_factory = str
+            cursor = conn.cursor()
+
+            print '========DEBUG1========'
+            print self.config.total_count
+
+            cursor.execute('SELECT id, url FROM rent WHERE id >=? ORDER BY id ASC', [self.config.max_id])
+            values = cursor.fetchall()
+            print values
+            for v in values:
+                dict_topics[v[0]] = v[1]
+        except Exception, e:
+            print 'database error', e
+        finally:
+            cursor.close()
+
+        cursor = conn.cursor()
+        print '========DEBUG2========'
+        keys_topics = dict_topics.keys()
+        for k in keys_topics:
+            r = requests.get(dict_topics[k], headers=self.douban_headers)
+            if r.status_code == 200:
+                try:
+                    self.douban_headers['Cookie'] = r.cookies
+                    soup = BeautifulSoup(r.text, 'html.parser')
+                    post_time = soup.find_all(attrs={'class': 'color-green'})[0].string
+                    userface_soup = soup.find_all(attrs={'class': 'user-face'})[0]
+                    head_image = userface_soup.find_all('img')[0].get('src')
+                    user_name = userface_soup.find_all('img')[0].get('alt')
+                    content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
+                    content = str(content_soup)
+                    # print user_name, head_image, content
+                    try:
+                        cursor.execute('UPDATE rent SET user=?, headimage=?, content=?, posttime=? WHERE id=?', \
+                                       [user_name, head_image, content, post_time, k])
+                    except Exception, e:
+                        print 'update database error', e
+                except Exception, e:
+                    print 'error match soup:', e.message
+                    print 'error url', dict_topics[k]
+                    continue
+            time.sleep(self.config.douban_sleep_time)
+        cursor.close()
+        print '处理1完成。'
+
+        # 2
+        print '处理2.过滤无效数据，写入配置文件...'
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM rent WHERE user IS NULL ')
+            total_count = len(cursor.execute('SELECT * FROM rent').fetchall())
+            print '处理2 total_count', total_count
+
+            cursor.execute('SELECT * FROM rent ORDER BY posttime DESC LIMIT 1')
+            cursor.execute('SELECT * FROM rent ORDER BY id DESC LIMIT 1')
+            max_id = cursor.fetchall()[0][0]
+            post_time = cursor.fetchall()[0][6]
+
+            try:
+                self.config.update('db', 'total_count', total_count)
+                self.config.update('db', 'max_id', max_id)
+                self.config.update('common', 'start_time', post_time)
+            except Exception, e:
+                print 'write total_count, start_time to config.ini error.', e
+
+            cursor.close()
+        except Exception, e:
+            print 'delete null data error', e
+        conn.commit()
+        conn.close()
+        print '处理2完成。'
+
+        # 3
+        print '处理3.写入脚本运行数据...'
+        try:
+            conn_db = sqlite3.connect("results/db_hub.sqlite")
+            conn_db.text_factory = str
+            cursor_db = conn_db.cursor()
+            cursor_db.execute(
+                'CREATE TABLE IF NOT EXISTS db_hub(id INTEGER PRIMARY KEY, update_time timestamp, \
+    total_count TEXT, update_count TEXT)')
+            res_count = len(cursor_db.execute('SELECT * FROM db_hub').fetchall())
+            print 'res_count', res_count
+
+            if res_count == 0:
+                cursor_db.execute('INSERT INTO db_hub(id, update_time, total_count, update_count) VALUES (NULL, \
+                    ?, ?, ?)', [datetime.datetime.now(), total_count, total_count])
+            else:
+                cursor_db.execute('SELECT total_count FROM db_hub WHERE id = ?', [res_count])
+                pre_total_count = int(cursor_db.fetchone()[0])
+                cursor_db.execute('INSERT INTO db_hub(id, update_time, total_count, update_count) VALUES (NULL, \
+                                                     ?, ?, ?)',
+                                  [datetime.datetime.now(), total_count, total_count - pre_total_count])
+        except Exception, e:
+            print 'database error', e
+        cursor_db.close()
+        conn_db.commit()
+        conn_db.close()
+        print '处理3完成。'
 
 
 class BootDriver(object):
@@ -276,6 +365,7 @@ class BootDriver(object):
     def run(self):
         crawler = Crawler(self.config)
         crawler.run()
+        crawler.process()
 
 
 if __name__ == '__main__':

@@ -54,70 +54,89 @@ def process():
     # creat database
     dict_topics = {}
     try:
-        conn = sqlite3.connect('results/result_20170521_204824.sqlite')
+        conn = sqlite3.connect('results/result_renthub.sqlite')
         conn.text_factory = str
         cursor = conn.cursor()
-        cursor.execute('SELECT id, url FROM rent ORDER BY id ASC')
-        values = cursor.fetchall()
-        print values
-        for v in values:
-            dict_topics[v[0]] = v[1]
-        print dict_topics
+        cursor.execute('select * from rent order by posttime DESC limit 1')
+        posttime = cursor.fetchall()[0][6]
+        print posttime
+        print type(posttime)
     except Exception, e:
         print 'database error'
-        return
-    finally:
-        cursor.close()
-
-    douban_headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, sdch, br',
-        'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.6,en;q=0.4,en-GB;q=0.2,zh-TW;q=0.2',
-        'Connection': 'keep-alive',
-        'DNT': '1',
-        'HOST': 'www.douban.com',
-        'Cookie': ''
-    }
-
-    cursor = conn.cursor()
-
-    keys_topics = dict_topics.keys()
-    for k in keys_topics:
-        if k == 5:
-            break
-        r = requests.get(dict_topics[k], headers=douban_headers)
-        if r.status_code == 200:
-            try:
-                douban_headers['Cookie'] = r.cookies
-                soup = BeautifulSoup(r.text, 'html.parser')
-                userface_soup = soup.find_all(attrs={'class': 'user-face'})[0]
-                print 'hello'
-                head_image = userface_soup.find_all('img')[0].get('src')
-                user_name = userface_soup.find_all('img')[0].get('alt')
-                content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
-                content = unicode(content_soup)
-                print user_name, head_image, content
-                try:
-                    cursor.execute('UPDATE rent SET user=?, headimage=?, content=? WHERE id=?', \
-                                   [user_name, head_image, content, k])
-                except Exception, e:
-                    print 'update database error', e
-            except Exception, e:
-                print 'error match soup:', e
-        time.sleep(5)
     cursor.close()
     conn.commit()
     conn.close()
 
+# process()
 
-process()
+url = 'https://www.douban.com/group/146409/discussion?start=0'
+r = requests.get(url)
+if r.status_code == 200:
+    soup = BeautifulSoup(r.text, 'html.parser')
+    table = soup.find_all(attrs={'class': 'olt'})[0]
+    paginator = soup.find_all(attrs={'class': 'paginator'})[0]
+    filter_count = 0
+    for tr in table.find_all('tr'):
+        if filter_count <= 2:
+            filter_count += 1
+            continue
+        td = tr.find_all('td')
+        print td[0].string
+        print td[0].text
+        print '========='
+        title_text = td[0].find_all('a')[0].get('title')
+        link_text = td[0].find_all('a')[0].get('href')
+        user_text = td[1].a.string
+        reply_count = td[2].string
+        time_text = td[3].string
+        break
+print title_text
+print link_text
+print user_text
+print reply_count
+print time_text
 
-# tstr = '<div111><p>本人在这里住了好几年，因工作原因现转租。<br/>房价1025，这几年就涨了25块。所以就这个价。<br/>出租的是单间，房间里空调电视机都有。还有一张很大的书桌，见下图。<br/>联系电话17621066365。<br/>小区名称：海东公寓，到地铁站一公里，如果到陆家嘴门口公交可以直达。</p>'
-# pattern1 = re.compile('.*<p>.*</p>.*')
-# matchornot = pattern1.match(tstr)
-# if matchornot:
-#     res = matchornot.group()
-#     target1 = res[res.index('<p>'):res.index('</p>')]
-#     target2 = target1.replace("<br/>", "\\n")
-#     print target2
+
+def getTimeFromStr(timeStr):
+    # 日期时间都转成datetime
+    datetime_today = datetime.datetime.today()
+    if '-' in timeStr and ':' in timeStr:
+        # 字符串包含日期和时间
+        prefix_str = timeStr.split(' ')[0]
+        suffix_str = timeStr.split(' ')[1]
+        if len(prefix_str) <= 5 and len(suffix_str) == 8:
+            # 如 1-1 11:00:00 or 01-01 11:00:00
+            print 'Detect No Year of datetime-str.',
+            dt = datetime.datetime.strptime(timeStr, "%m-%d %H:%M:%S")
+            return dt.replace(year=datetime_today.year)
+        elif len(prefix_str) <= 5 and len(suffix_str) < 8:
+            # 如 1-1 11:00 or 01-01 11:00
+            print 'Detect No Year & No Second of datetime-str.',
+            dt = datetime.datetime.strptime(timeStr, "%m-%d %H:%M")
+            return dt.replace(year=datetime_today.year)
+        else:
+            # 如 2017-01-01 11:00:00
+            print 'Detect correct datetime-str.',
+            return datetime.datetime.strptime(timeStr, "%Y-%m-%d %H:%M:%S")
+    elif '-' in timeStr:
+        # 字符串仅有日期
+        if len(timeStr) <= 5:
+            print 'Detect No Year of date-str.',
+            dt = datetime.datetime.strptime(timeStr, "%m-%d")
+            return dt.replace(year=datetime_today.year)
+        else:
+            print 'Detect correct date-str.',
+            return datetime.datetime.strptime(timeStr, "%Y-%m-%d")
+    elif ':' in timeStr:
+        # 字符串仅有时间
+        if len(timeStr) < 8:
+            print 'Detect No Second of time-str.',
+            dt = datetime.datetime.strptime(timeStr, "%H:%M")
+        else:
+            print 'Detect correct time-str.',
+            dt = datetime.datetime.strptime(timeStr, "%H:%M:%S")
+        # date.replace(year, month, day)：生成一个新的日期对象
+        return dt.replace(year=datetime_today.year, month=datetime_today.month, day=datetime_today.day)
+    else:
+        # 返回当前的datetime对象
+        return datetime_today
