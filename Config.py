@@ -8,17 +8,14 @@ class Config(object):
         # read(filename) 直接读取ini文件内容
         self.cf.read(config_file_name)
         # get(section,option) 得到section中option的值，返回为string类型
-        key_list = self.cf.get('common', 'key_word_list').split(',')
         custom_black_list = self.cf.get('common', 'custom_black_list').split(',')
 
-        # 下面两行是去掉key_list和custom_black_list中防止用户输入有空格啊换行什么的，只留下字
-        self.key_word_list = [key.strip() for key in key_list]
+        # 去掉custom_black_list中的空白符
         self.custom_black_list = [key.strip() for key in custom_black_list]
 
         self.start_time = self.cf.get('common', 'start_time')
         self.douban_cookie = self.cf.get('douban', 'douban_cookie')
         self.douban_sleep_time = self.cf.getfloat('douban', 'douban_sleep_time')
-        self.total_count = self.cf.getint('db', 'total_count')
         self.max_id = self.cf.getint('db', 'max_id')
 
     def update(self, section, option, value):

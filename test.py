@@ -140,3 +140,8 @@ def getTimeFromStr(timeStr):
     else:
         # 返回当前的datetime对象
         return datetime_today
+
+
+str1 = raw_input("enter:")
+print str1
+
