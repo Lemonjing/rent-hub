@@ -92,7 +92,7 @@ class Crawler(object):
             cursor = conn.cursor()
             cursor.execute(
                 'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, user TEXT, headimage TEXT, title TEXT, content TEXT, \
-url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, source TEXT, note TEXT, city INTEGER)')
+url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, source TEXT, note TEXT, city INTEGER, coverimage TEXT)')
             cursor.close()
             cursor = conn.cursor()
 
@@ -115,7 +115,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     'https://www.douban.com/group/523355/discussion?start=' + num_in_url,
                     # 上海租房(2) 557646
                     'https://www.douban.com/group/557646/discussion?start=' + num_in_url,
-                    # 上海合租族_魔都租房 383972
+                    # 上海合租族_魔都租房 38397r2
                     'https://www.douban.com/group/383972/discussion?start=' + num_in_url,
                     # 上海租房@浦东租房 283855
                     'https://www.douban.com/group/283855/discussion?start=' + num_in_url,
@@ -237,12 +237,12 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
 
             print '爬虫开始运行...'
 
-            for city_index in range(2):
-                if city_index == 0:
+            for city in range(2):
+                if city == 0:
                     douban_url_name = douban_url_name_hz
                 else:
                     douban_url_name = douban_url_name_sh
-                search_url = urlList(0, city_index)
+                search_url = urlList(0, city)
                 for i in range(len(search_url)):
                     page_number = 0
 
@@ -255,8 +255,8 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     while boot.ok:
                         print 'i, page_number: ', i, page_number
 
-                        current_url = urlList(page_number)[i]
-                        crawl(i, current_url, self.douban_headers, city_index)
+                        current_url = urlList(page_number, city)[i]
+                        crawl(i, current_url, self.douban_headers, city)
                         page_number += 1
         except Exception, e:
             print 'crawl run() error:', e.message
@@ -318,11 +318,15 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     head_image = userface_soup.find_all('img')[0].get('src')
                     user_name = userface_soup.find_all('img')[0].get('alt')
                     content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
+                    if content_soup.find_all('img'):
+                        cover_image = content_soup.find_all('img')[0].get('src')
+                    else:
+                        cover_image = None
                     content = str(content_soup)
                     # print user_name, head_image, content
                     try:
-                        cursor.execute('UPDATE rent SET user=?, headimage=?, content=?, posttime=? WHERE id=?', \
-                                       [user_name, head_image, content, post_time, k])
+                        cursor.execute('UPDATE rent SET user=?, headimage=?, content=?, posttime=?, coverimage=? WHERE id=?', \
+                                       [user_name, head_image, content, post_time, cover_image, k])
                     except Exception, e:
                         print 'update database error', e
                 except Exception, e:
@@ -330,7 +334,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     print 'error url', dict_topics[k]
                     print '正在过滤错误url，请稍后...'
                     continue
-            time.sleep(self.config.douban_sleep_time)
+            time.sleep(2)
         cursor.close()
         print '处理1完成。'
 
