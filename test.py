@@ -12,69 +12,29 @@ import sqlite3
 from bs4 import BeautifulSoup
 import re
 
-def new_fn(f):
-    @functools.wraps(f)
-    def fn(x):
-        print 'call' + f.__name__ + '()'
-        return f(x)
-
-    return fn
-
-
-@new_fn
-def f1(x):
-    return x * 2
-
-
-print f1.__name__
-
-a = math.sqrt(8)
-b = int(a)
-print a
-print b
-
-
-# Closure
-
-def count():
-    fs = []
-    for i in range(1, 4):
-        def f():
-            return i * i
-
-        fs.append(f)
-    return fs
-
-
-f1, f2, f3 = count()
-
-
-def process():
-    # result_file_name = 'results/result_' + str(sqltime)
-    # creat database
-    dict_topics = {}
-    try:
-        conn = sqlite3.connect('results/result_renthub.sqlite')
-        conn.text_factory = str
-        cursor = conn.cursor()
-        cursor.execute('select * from rent order by posttime DESC limit 1')
-        posttime = cursor.fetchall()[0][6]
-        print posttime
-        print type(posttime)
-    except Exception, e:
-        print 'database error'
-    cursor.close()
-    conn.commit()
-    conn.close()
-
-# process()
-
-url = 'https://www.douban.com/group/topic/102929560/'
+url = 'https://www.douban.com/group/topic/102732276/'
 r = requests.get(url)
 if r.status_code == 200:
-    soup = BeautifulSoup(r.text, 'html.parser')
-    content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
-    if content_soup.find_all('img'):
-        cover_image = content_soup.find_all('img')[0].get('src')
-        print cover_image
+    try:
+        soup = BeautifulSoup(r.text, 'html.parser')
+        post_time = soup.find_all(attrs={'class': 'color-green'})[0].string
+        userface_soup = soup.find_all(attrs={'class': 'user-face'})[0]
+        userface_soup_img = userface_soup.find_all('img')[0]
+        head_image = userface_soup_img.get('src')
+        user_name = userface_soup_img.get('alt')
+        content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
+        print '=====content_soup over====='
+        print '=====cover_image start====='
+        if content_soup.find_all('img'):
+            cover_image = content_soup.find_all('img')[0].get('src')
+        else:
+            cover_image = None
+        print '=====cover_image end====='
+        content = str(content_soup)
+        print '=======detail data end======'
+        # print user_name, head_image, content
 
+    except Exception, e:
+        print 'error match soup:', e.message
+        print 'error url', url
+        print '正在过滤错误url，请稍后...'

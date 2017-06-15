@@ -92,7 +92,7 @@ class Crawler(object):
             cursor = conn.cursor()
             cursor.execute(
                 'CREATE TABLE IF NOT EXISTS rent(id INTEGER PRIMARY KEY, user TEXT, headimage TEXT, title TEXT, content TEXT, \
-url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, source TEXT, note TEXT, city INTEGER, coverimage TEXT)')
+url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, source TEXT, note INTEGER, city INTEGER, coverimage TEXT)')
             cursor.close()
             cursor = conn.cursor()
 
@@ -180,7 +180,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     try:
                         if index == 0:
                             self.douban_headers['Cookie'] = r.cookies
-                            print self.douban_headers['Cookie']
+                            # print self.douban_headers['Cookie']
                         soup = BeautifulSoup(r.text, 'html.parser')
                         paginator = soup.find_all(attrs={'class': 'paginator'})[0]
                         # print "=========paginator: =", paginator
@@ -315,14 +315,19 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     soup = BeautifulSoup(r.text, 'html.parser')
                     post_time = soup.find_all(attrs={'class': 'color-green'})[0].string
                     userface_soup = soup.find_all(attrs={'class': 'user-face'})[0]
-                    head_image = userface_soup.find_all('img')[0].get('src')
-                    user_name = userface_soup.find_all('img')[0].get('alt')
+                    userface_soup_img = userface_soup.find_all('img')[0]
+                    head_image = userface_soup_img.get('src')
+                    user_name = userface_soup_img.get('alt')
                     content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
+                    print '=====content_soup over====='
+                    print '=====cover_image start====='
                     if content_soup.find_all('img'):
                         cover_image = content_soup.find_all('img')[0].get('src')
                     else:
                         cover_image = None
+                    print '=====cover_image end====='
                     content = str(content_soup)
+                    print '=======detail data end======'
                     # print user_name, head_image, content
                     try:
                         cursor.execute('UPDATE rent SET user=?, headimage=?, content=?, posttime=?, coverimage=? WHERE id=?', \
@@ -334,7 +339,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                     print 'error url', dict_topics[k]
                     print '正在过滤错误url，请稍后...'
                     continue
-            time.sleep(2)
+            time.sleep(self.config.douban_sleep_time)
         cursor.close()
         print '处理1完成。'
 
@@ -374,7 +379,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
             cursor_db = conn_db.cursor()
             cursor_db.execute(
                 'CREATE TABLE IF NOT EXISTS db_hub(id INTEGER PRIMARY KEY, update_time timestamp, \
-    total_count TEXT, update_count TEXT)')
+    total_count INTEGER, update_count INTEGER)')
             res_count = len(cursor_db.execute('SELECT * FROM db_hub').fetchall())
             print 'res_count', res_count
 
