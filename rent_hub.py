@@ -307,6 +307,9 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
 
         cursor = conn.cursor()
         keys_topics = dict_topics.keys()
+
+        print 'keys_topics=', keys_topics
+
         for k in keys_topics:
             r = requests.get(dict_topics[k], headers=self.douban_headers)
             if r.status_code == 200:
