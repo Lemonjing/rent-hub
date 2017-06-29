@@ -7,6 +7,7 @@ import time
 import datetime
 import os
 import requests
+import multiprocessing
 from bs4 import BeautifulSoup
 
 import Config
@@ -164,7 +165,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
             与初始url一一对应的群组名
             '''
             douban_url_name_hz = ['杭州租房', '杭州租房（出租、求租、合租）', '杭州 出租 租房 中介免入', '杭州租房一族', '共享天堂---我要租房（杭州）', \
-                               '杭州西湖区租房', '杭州租房', '杭州滨江租房', '滨江租房', '滨江租房', '我要在杭州租房子', '杭州无中介租房']
+                                  '杭州西湖区租房', '杭州租房', '杭州滨江租房', '滨江租房', '滨江租房', '我要在杭州租房子', '杭州无中介租房']
 
             '''
             与初始url一一对应的群组名
@@ -288,8 +289,9 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
 
     def process(self):
         print '现在开始对数据表进行处理'
-        print '处理1.准备详情页的数据...'
         # 1
+        print '处理1.准备详情页的数据...'
+        # 准备待处理url
         dict_topics = {}
         try:
             conn = sqlite3.connect('results/result_renthub.sqlite')
@@ -305,44 +307,106 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
         finally:
             cursor.close()
 
-        cursor = conn.cursor()
+        # 拆分为4进程处理4段url
         keys_topics = dict_topics.keys()
+        keys_topics_len = len(keys_topics)
+        print 'keys_topics_len=', keys_topics_len
+        keys_topics_gap = keys_topics_len / 4
+        keys_topics1 = keys_topics[0:keys_topics_gap]
+        keys_topics2 = keys_topics[keys_topics_gap:2 * keys_topics_gap]
+        keys_topics3 = keys_topics[2 * keys_topics_gap:3 * keys_topics_gap]
+        keys_topics4 = keys_topics[3 * keys_topics_gap:]
 
-        print 'keys_topics=', keys_topics
-
-        for k in keys_topics:
-            r = requests.get(dict_topics[k], headers=self.douban_headers)
-            if r.status_code == 200:
-                try:
-                    self.douban_headers['Cookie'] = r.cookies
-                    soup = BeautifulSoup(r.text, 'html.parser')
-                    post_time = soup.find_all(attrs={'class': 'color-green'})[0].string
-                    userface_soup = soup.find_all(attrs={'class': 'user-face'})[0]
-                    userface_soup_img = userface_soup.find_all('img')[0]
-                    head_image = userface_soup_img.get('src')
-                    user_name = userface_soup_img.get('alt')
-                    content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
-                    print '=====content_soup over====='
-                    print '=====cover_image start====='
-                    if content_soup.find_all('img'):
-                        cover_image = content_soup.find_all('img')[0].get('src')
-                    else:
-                        cover_image = None
-                    print '=====cover_image end====='
-                    content = str(content_soup)
-                    print '=======detail data end======'
-                    # print user_name, head_image, content
+        # 每一段单独进程
+        def parallel(dict_topics_split, f):
+            print 'Current Process start --------> '
+            for k in dict_topics_split:
+                print 'Current split length=', len(dict_topics_split), 'Current k in split=', k
+                r = requests.get(dict_topics[k], headers=self.douban_headers)
+                if r.status_code == 200:
                     try:
-                        cursor.execute('UPDATE rent SET user=?, headimage=?, content=?, posttime=?, coverimage=? WHERE id=?', \
-                                       [user_name, head_image, content, post_time, cover_image, k])
+                        self.douban_headers['Cookie'] = r.cookies
+                        soup = BeautifulSoup(r.text, 'html.parser')
+                        post_time = soup.find_all(attrs={'class': 'color-green'})[0].string
+                        userface_soup = soup.find_all(attrs={'class': 'user-face'})[0]
+                        userface_soup_img = userface_soup.find_all('img')[0]
+                        head_image = userface_soup_img.get('src')
+                        user_name = userface_soup_img.get('alt')
+                        content_soup = soup.find_all(attrs={'class': 'topic-content'})[1]
+                        if content_soup.find_all('img'):
+                            cover_image = content_soup.find_all('img')[0].get('src')
+                        else:
+                            cover_image = ''
+                        content = unicode(content_soup)
+                        # print user_name, head_image, content
+                        try:
+                            line = user_name.encode("utf-8") + 'delimited' + head_image.encode("utf-8") + 'delimited' \
+                                   + content.encode('utf-8') + 'delimited' + post_time.encode('utf-8') \
+                                   + 'delimited' + cover_image.encode("utf-8") + 'delimited' + str(k) + 'linesplit'
+                            with open(f, "a+") as fs:
+                                fs.write(line)
+                            # p_cursor.execute(
+                            #     'UPDATE rent SET user=?, headimage=?, content=?, posttime=?, coverimage=? WHERE id=?', \
+                            #     [user_name, head_image, content, post_time, cover_image, k])
+                        except Exception, e:
+                            print 'save text line error', e.message
+                            print 'current error text line', line
                     except Exception, e:
-                        print 'update database error', e
-                except Exception, e:
-                    print 'error match soup:', e.message
-                    print 'error url', dict_topics[k]
-                    print '正在过滤错误url，请稍后...'
+                        print 'error match soup:', e.message
+                        print 'error url', dict_topics[k]
+                        print '正在过滤错误url，请稍后...'
+                        continue
+                time.sleep(self.config.douban_sleep_time)
+            print '--------> Current Process end'
+        '''
+        多进程进行处理1
+        '''
+        files = ['tmp_file1', 'tmp_file2', 'tmp_file3', 'tmp_file4']
+        p1 = multiprocessing.Process(target=parallel, args=(keys_topics1, files[0]))
+        p2 = multiprocessing.Process(target=parallel, args=(keys_topics2, files[1]))
+        p3 = multiprocessing.Process(target=parallel, args=(keys_topics3, files[2]))
+        p4 = multiprocessing.Process(target=parallel, args=(keys_topics4, files[3]))
+        p_arr = [p1, p2, p3, p4]
+        p1.start()
+        p2.start()
+        p3.start()
+        p4.start()
+        print("The number of CPU is:" + str(multiprocessing.cpu_count()))
+
+        # 等待多进程全部运行完毕
+        for p in p_arr:
+            p.join()
+        print "多进程结束，现在开始处理文本..."
+
+        # 处理4进程产生的4个文本
+        for filename in files:
+            with open(filename, 'r') as fs1:
+                lines_tmp = fs1.read().split('linesplit')
+                lines = lines_tmp[:-1]
+                for line in lines:
+                    fields = line.split('delimited')
+                    user_name = fields[0]
+                    head_image = fields[1]
+                    content = fields[2]
+                    post_time = fields[3]
+                    cover_image = fields[4]
+                    k = int(fields[5])
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            'UPDATE rent SET user=?, headimage=?, content=?, posttime=?, coverimage=? WHERE id=?', \
+                            [user_name, head_image, content, post_time, cover_image, k])
+                    except Exception, e:
+                        print 'update database error', e.message
+                        print 'current error url key', k
                     continue
-            time.sleep(self.config.douban_sleep_time)
+            try:
+                this_file_dir = os.path.split(os.path.realpath(__file__))[0]
+                tmp_file_path = os.path.join(this_file_dir, filename)
+                if os.path.exists(tmp_file_path):
+                    os.remove(tmp_file_path)
+            except Exception, e:
+                print 'delete file error', e.message
         cursor.close()
         print '处理1完成。'
 
@@ -350,7 +414,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
         print '处理2.过滤无效数据，写入配置文件...'
         try:
             cursor = conn.cursor()
-            cursor.execute('DELETE FROM rent WHERE user IS NULL or headimage is NULL')
+            cursor.execute('DELETE FROM rent WHERE user IS NULL OR headimage IS NULL')
             total_count = len(cursor.execute('SELECT * FROM rent').fetchall())
             print '处理null后的最终total_count', total_count
 
@@ -401,6 +465,21 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
         conn_db.commit()
         conn_db.close()
         print '处理3完成。'
+
+        # 4
+        print '处理4.写入用户数据...'
+        try:
+            conn_db = sqlite3.connect("results/rent-hub-fav.sqlite")
+            conn_db.text_factory = str
+            cursor_db = conn_db.cursor()
+            cursor_db.execute(
+                'CREATE TABLE IF NOT EXISTS favorite(id INTEGER PRIMARY KEY, user_id TEXT, fav_list TEXT)')
+        except Exception, e:
+            print 'database error', e
+        cursor_db.close()
+        conn_db.commit()
+        conn_db.close()
+        print '处理4完成。'
 
 
 class BootDriver(object):

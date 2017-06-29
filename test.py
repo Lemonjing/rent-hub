@@ -113,12 +113,44 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
                 douban_url_sh = [
                     # 上海租房 146409
                     'https://www.douban.com/group/146409/discussion?start=' + num_in_url,
+                    # 上海招聘，租房 523355
+                    'https://www.douban.com/group/523355/discussion?start=' + num_in_url,
+                    # 上海租房(2) 557646
+                    'https://www.douban.com/group/557646/discussion?start=' + num_in_url,
+                    # 上海合租族_魔都租房 38397r2
+                    'https://www.douban.com/group/383972/discussion?start=' + num_in_url,
+                    # 上海租房@浦东租房 283855
+                    'https://www.douban.com/group/283855/discussion?start=' + num_in_url,
+                    # 上海租房---房子是租来的，生活不是 76231
+                    'https://www.douban.com/group/76231/discussion?start=' + num_in_url,
+                    # 上海租房@长宁租房/徐汇/静安租房 196844
+                    'https://www.douban.com/group/196844/discussion?start=' + num_in_url,
                     # 上海租房（不良中介勿扰）259227
                     'https://www.douban.com/group/259227/discussion?start=' + num_in_url]
 
                 douban_url_hz = [
                     # 杭州租房 281316
                     'https://www.douban.com/group/281316/discussion?start=' + num_in_url,
+                    # 杭州租房（出租、求租、合租）467221
+                    'https://www.douban.com/group/467221/discussion?start=' + num_in_url,
+                    # 杭州 出租 租房 中介免入 145219
+                    'https://www.douban.com/group/145219/discussion?start=' + num_in_url,
+                    # 杭州租房一族 276209
+                    'https://www.douban.com/group/276209/discussion?start=' + num_in_url,
+                    # 共享天堂---我要租房（杭州）120199
+                    'https://www.douban.com/group/120199/discussion?start=' + num_in_url,
+                    # 杭州西湖区租房 560075
+                    'https://www.douban.com/group/560075/discussion?start=' + num_in_url,
+                    # 杭州租房 340633
+                    'https://www.douban.com/group/340633/discussion?start=' + num_in_url,
+                    # 杭州滨江租房 554566
+                    'https://www.douban.com/group/554566/discussion?start=' + num_in_url,
+                    # 滨江租房 550725
+                    'https://www.douban.com/group/550725/discussion?start=' + num_in_url,
+                    # 滨江租房 539160
+                    'https://www.douban.com/group/539160/discussion?start=' + num_in_url,
+                    # 我要在杭州租房子 224803
+                    'https://www.douban.com/group/340633/discussion?start=' + num_in_url,
                     # 杭州无中介租房 562889
                     'https://www.douban.com/group/562889/discussion?start=' + num_in_url]
 
