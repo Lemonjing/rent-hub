@@ -473,7 +473,7 @@ url TEXT UNIQUE, posttime timestamp, updatetime timestamp, crawtime timestamp, s
             conn_db.text_factory = str
             cursor_db = conn_db.cursor()
             cursor_db.execute(
-                'CREATE TABLE IF NOT EXISTS favorite(id INTEGER PRIMARY KEY, user_id TEXT, fav_list TEXT)')
+                'CREATE TABLE IF NOT EXISTS favorite(id INTEGER PRIMARY KEY, user_id TEXT, fav_str TEXT)')
         except Exception, e:
             print 'database error', e
         cursor_db.close()
